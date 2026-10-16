@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Kiểm Tra Tốc Độ Phản Xạ Click - <Mã SV>bt38.html</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+            user-select: none;
+        }
+
+        /* Fixed dimensions for game area while maintaining responsiveness */
+        #arena-wrapper {
+            perspective: 1000px;
+        }
+
+        #arena {
+            width: 600px;
+            height: 400px;
+            position: relative;
+            overflow: hidden;
+            background: radial-gradient(circle at center, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 0 30px rgba(99, 102, 241, 0.15);
+            backdrop-filter: blur(10px);
+        }
+
+        /* Target Styling & Animation */
+        .target {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 0 20px rgba(236, 72, 153, 0.8), 0 0 40px rgba(168, 85, 247, 0.5);
+            background: radial-gradient(circle at 30% 30%, #f472b6, #db2777 60%, #9d174d 100%);
+            animation: targetPulse 1.2s infinite alternate ease-in-out;
+            z-index: 20;
+        }
+
+        .target::before {
+            content: '';
+            width: 60%;
+            height: 60%;
+            border-radius: 50%;
+            background: #ffffff;
+            opacity: 0.9;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+        }
+
+        .target::after {
+            content: '';
+            position: absolute;
+            width: 25%;
+            height: 25%;
+            border-radius: 50%;
+            background: #db2777;
+        }
+
+        .target:active {
+            transform: scale(0.85) !important;
+        }
+
+        @keyframes targetPulse {
+            0% { transform: scale(1); filter: brightness(1); }
+            100% { transform: scale(1.08); filter: brightness(1.2); }
+        }
+
+        /* Click Ripple Effect */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid #38bdf8;
+            animation: rippleEffect 0.5s ease-out forwards;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @keyframes rippleEffect {
+            0% { width: 0px; height: 0px; opacity: 1; transform: translate(-50%, -50%); }
+            100% { width: 80px; height: 80px; opacity: 0; transform: translate(-50%, -50%); }
+        }
+
+        /* Floating Score Floating text (+1) */
+        .score-pop {
+            position: absolute;
+            font-weight: 800;
+            font-size: 1.25rem;
+            color: #4ade80;
+            text-shadow: 0 0 10px rgba(74, 222, 128, 0.8);
+            pointer-events: none;
+            animation: popUp 0.6s ease-out forwards;
+            z-index: 30;
+        }
+
+        @keyframes popUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-30px) scale(1.4); }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4f46e5;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen items-center justify-between p-4 sm:p-6">
+
+    <!-- Top Header -->
+    <header class="text-center my-2 max-w-2xl w-full">
+        <div class="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-4 py-1.5 rounded-full text-indigo-400 text-xs sm:text-sm font-medium mb-3">
+            <i class="fa-solid me-1 fa-bolt-lightning text-yellow-400"></i> Bài Tập 38 - Web Application
+        </div>
+        <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-purple-300 to-indigo-400">
+            Kiểm Tra Tốc Độ Phản Xạ
+        </h1>
+        <p class="text-slate-400 text-xs sm:text-sm mt-1">Nhanh tay click vào mục tiêu xuất hiện để ghi điểm cao nhất trong 30 giây!</p>
+    </header>
+
+    <!-- Main Game Container -->
+    <main class="flex flex-col items-center w-full max-w-4xl my-auto">
+        
+        <!-- Scoreboard & Controls Bar -->
+        <div class="w-full max-w-[600px] grid grid-cols-3 gap-3 mb-4">
+            <!-- Score Card -->
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-3 text-center shadow-lg backdrop-blur-md">
+                <span class="text-slate-400 text-xs uppercase tracking-wider font-semibold block mb-0.5">
+                    <i class="fa-solid fa-bullseye text-pink-500 me-1"></i> Điểm Số
+                </span>
+                <span id="score-display" class="text-2xl sm:text-3xl font-black text-pink-400">0</span>
+            </div>
+
+            <!-- Timer Card -->
+            <div id="timer-card" class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-3 text-center shadow-lg backdrop-blur-md transition-all duration-300">
+                <span class="text-slate-400 text-xs uppercase tracking-wider font-semibold block mb-0.5">
+                    <i class="fa-regular fa-clock text-indigo-400 me-1"></i> Thời Gian
+                </span>
+                <span id="time-display" class="text-2xl sm:text-3xl font-black text-indigo-300">30s</span>
+            </div>
+
+            <!-- Highscore Card -->
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-3 text-center shadow-lg backdrop-blur-md">
+                <span class="text-slate-400 text-xs uppercase tracking-wider font-semibold block mb-0.5">
+                    <i class="fa-solid fa-trophy text-amber-400 me-1"></i> Kỷ Lục
+                </span>
+                <span id="highscore-display" class="text-2xl sm:text-3xl font-black text-amber-400">0</span>
+            </div>
+        </div>
+
+        <!-- Arena Viewport Wrapper -->
+        <div id="arena-wrapper" class="relative max-w-full overflow-x-auto p-1">
+            <div id="arena" class="rounded-2xl">
+                
+                <!-- Start / Overlay Screen -->
+                <div id="start-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 text-center transition-all duration-300">
+                    <div class="w-16 h-16 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-2xl mb-4 animate-bounce">
+                        <i class="fa-solid fa-hand-pointer"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-white mb-2">Sẵn Sàng Thử Thách?</h2>
+                    <p class="text-slate-300 text-sm max-w-sm mb-6">Mục tiêu sẽ xuất hiện liên tục trong 30 giây. Mỗi 1 giây không click mục tiêu sẽ tự động di chuyển!</p>
+                    
+                    <button id="start-btn" onclick="startGame()" class="px-8 py-3.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold text-lg rounded-xl shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-150 flex items-center gap-2">
+                        <i class="fa-solid fa-play"></i> Bắt Đầu Trò Chơi
+                    </button>
+                </div>
+
+                <!-- Target Element (Dynamically placed) -->
+                <div id="target" class="target hidden" onclick="handleTargetClick(event)"></div>
+            </div>
+        </div>
+
+        <!-- Controls Row -->
+        <div class="mt-4 flex items-center justify-center gap-3 w-full max-w-[600px]">
+            <button id="restart-btn" onclick="startGame()" disabled class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-lg text-sm transition-all duration-150 flex items-center gap-2">
+                <i class="fa-solid fa-rotate-right"></i> Chơi Lại
+            </button>
+            <button id="sound-btn" onclick="toggleSound()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-semibold rounded-lg text-sm transition-all duration-150 flex items-center gap-2">
+                <i id="sound-icon" class="fa-solid fa-volume-high text-indigo-400"></i> <span id="sound-text">Âm thanh</span>
+            </button>
+        </div>
+    </main>
+
+    <!-- Modal Notification Result -->
+    <div id="result-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 sm:p-8 text-center shadow-2xl transform scale-95 transition-all duration-300 relative overflow-hidden" id="modal-card">
+            <!-- Glow background decorative element -->
+            <div class="absolute -top-12 -left-12 w-32 h-32 bg-pink-500/20 rounded-full blur-2xl"></div>
+            <div class="absolute -bottom-12 -right-12 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl"></div>
+
+            <div id="badge-container" class="w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-amber-400 to-yellow-200 flex items-center justify-center text-slate-900 text-3xl shadow-lg mb-4">
+                <i class="fa-solid fa-trophy" id="modal-icon"></i>
+            </div>
+
+            <h3 class="text-2xl font-extrabold text-white mb-1" id="modal-title">Hết Giờ!</h3>
+            <p class="text-slate-400 text-sm mb-6" id="modal-subtitle">Thành tích kiểm tra tốc độ phản xạ của bạn</p>
+
+            <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50 mb-6 grid grid-cols-2 gap-4">
+                <div class="text-center border-r border-slate-700/50 pr-2">
+                    <span class="text-slate-400 text-xs block font-semibold mb-1">Tổng điểm</span>
+                    <span class="text-3xl font-black text-pink-400" id="modal-score">0</span>
+                </div>
+                <div class="text-center pl-2">
+                    <span class="text-slate-400 text-xs block font-semibold mb-1">Tốc độ trung bình</span>
+                    <span class="text-2xl font-bold text-indigo-300 mt-1 block" id="modal-cps">0.0 <span class="text-xs font-normal">click/s</span></span>
+                </div>
+            </div>
+
+            <div class="bg-indigo-950/40 border border-indigo-500/30 rounded-xl p-3.5 mb-6 text-left flex items-start gap-3">
+                <div class="text-indigo-400 text-lg mt-0.5"><i class="fa-solid fa-chart-line"></i></div>
+                <div>
+                    <span class="text-xs font-semibold text-indigo-300 block uppercase tracking-wider">Đánh giá phản xạ</span>
+                    <p class="text-sm font-bold text-white mt-0.5" id="modal-rank">Siêu Nhanh</p>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="closeModal(); startGame();" class="flex-1 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg shadow-pink-500/20 transition-all text-sm">
+                    <i class="fa-solid fa-rotate-right me-1"></i> Thử Lại Ngay
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-6 text-center text-xs text-slate-500">
+        <p>Source Code: <code class="bg-slate-800 px-2 py-0.5 rounded text-indigo-300">&lt;Mã SV&gt;bt38.html</code> | Lập trình Web Client</p>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Game State Variables
+        const GAME_DURATION = 30; // Seconds
+        let score = 0;
+        let timeRemaining = GAME_DURATION;
+        let gameInterval = null;
+        let targetInterval = null;
+        let isGameRunning = false;
+        let soundEnabled = true;
+        let highScore = parseInt(localStorage.getItem('click_game_highscore')) || 0;
+
+        // DOM Elements
+        const arena = document.getElementById('arena');
+        const target = document.getElementById('target');
+        const scoreDisplay = document.getElementById('score-display');
+        const timeDisplay = document.getElementById('time-display');
+        const highscoreDisplay = document.getElementById('highscore-display');
+        const startOverlay = document.getElementById('start-overlay');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const timerCard = document.getElementById('timer-card');
+        
+        // Modal DOM Elements
+        const resultModal = document.getElementById('result-modal');
+        const modalCard = document.getElementById('modal-card');
+        const modalScore = document.getElementById('modal-score');
+        const modalCps = document.getElementById('modal-cps');
+        const modalRank = document.getElementById('modal-rank');
+        const modalIcon = document.getElementById('modal-icon');
+        const badgeContainer = document.getElementById('badge-container');
+
+        // Target Dimensions (Matching CSS)
+        const TARGET_SIZE = 48;
+        const ARENA_WIDTH = 600;
+        const ARENA_HEIGHT = 400;
+
+        // Web Audio API Context for Synthetic SFX
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // Play synthetic audio tones without external URL dependencies
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'hit') {
+                    // High-pitched pleasant click chime
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(587.33, now); // D5
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.08); // A5
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } else if (type === 'gameover') {
+                    // Fanfare end tone sequence
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.setValueAtTime(554.37, now + 0.1);
+                    osc.frequency.setValueAtTime(659.25, now + 0.2);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                }
+            } catch (e) {
+                console.log('Audio playback constrained', e);
+            }
+        }
+
+        // Initialize Highscore on Load
+        highscoreDisplay.textContent = highScore;
+
+        // Toggle Sound ON/OFF
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const soundIcon = document.getElementById('sound-icon');
+            const soundText = document.getElementById('sound-text');
+            if (soundEnabled) {
+                soundIcon.className = "fa-solid fa-volume-high text-indigo-400";
+                soundText.textContent = "Âm thanh";
+            } else {
+                soundIcon.className = "fa-solid fa-volume-xmark text-slate-500";
+                soundText.textContent = "Tắt âm";
+            }
+        }
+
+        // Spawn Target at Random Position inside #arena
+        function moveTarget() {
+            if (!isGameRunning) return;
+
+            // Calculate valid coordinates within bounds (0 to Max)
+            const maxX = ARENA_WIDTH - TARGET_SIZE;
+            const maxY = ARENA_HEIGHT - TARGET_SIZE;
+
+            const randomX = Math.floor(Math.random() * maxX);
+            const randomY = Math.floor(Math.random() * maxY);
+
+            target.style.left = `${randomX}px`;
+            target.style.top = `${randomY}px`;
+            target.classList.remove('hidden');
+        }
+
+        // Handle Click on Target
+        function handleTargetClick(e) {
+            if (!isGameRunning) return;
+
+            e.stopPropagation(); // Prevent arena click handler if any
+
+            // Increase Score
+            score++;
+            scoreDisplay.textContent = score;
+
+            // SFX & VFX
+            playSound('hit');
+            createRipple(e.clientX, e.clientY);
+            createScorePop(e.clientX, e.clientY);
+
+            // Move immediately to new position & reset 1s timer
+            moveTarget();
+            resetTargetTimer();
+        }
+
+        // Automatic movement every 1 second if missed
+        function resetTargetTimer() {
+            clearInterval(targetInterval);
+            targetInterval = setInterval(() => {
+                moveTarget();
+            }, 1000);
+        }
+
+        // Ripple Animation Effect on Hit
+        function createRipple(clientX, clientY) {
+            const rect = arena.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            const ripple = document.createElement('div');
+            ripple.className = 'ripple';
+            ripple.style.left = `${x}px`;
+            ripple.style.top = `${y}px`;
+
+            arena.appendChild(ripple);
+
+            setTimeout(() => {
+                ripple.remove();
+            }, 500);
+        }
+
+        // Pop Floating Text Effect (+1)
+        function createScorePop(clientX, clientY) {
+            const rect = arena.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            const pop = document.createElement('div');
+            pop.className = 'score-pop';
+            pop.textContent = '+1';
+            pop.style.left = `${x}px`;
+            pop.style.top = `${y - 10}px`;
+
+            arena.appendChild(pop);
+
+            setTimeout(() => {
+                pop.remove();
+            }, 600);
+        }
+
+        // Start Game Engine
+        function startGame() {
+            initAudio();
+            closeModal();
+
+            // Reset Game Variables
+            score = 0;
+            timeRemaining = GAME_DURATION;
+            isGameRunning = true;
+
+            // Update UI
+            scoreDisplay.textContent = '0';
+            timeDisplay.textContent = `${timeRemaining}s`;
+            startOverlay.classList.add('opacity-0', 'pointer-events-none');
+            restartBtn.disabled = false;
+            timerCard.classList.remove('border-red-500', 'animate-pulse');
+
+            // Spawn first target
+            moveTarget();
+            resetTargetTimer();
+
+            // Start Countdown Timer Interval
+            clearInterval(gameInterval);
+            gameInterval = setInterval(() => {
+                timeRemaining--;
+                timeDisplay.textContent = `${timeRemaining}s`;
+
+                // Warning effect when time < 5s
+                if (timeRemaining <= 5) {
+                    timerCard.classList.add('border-red-500', 'animate-pulse');
+                    timeDisplay.classList.replace('text-indigo-300', 'text-red-400');
+                } else {
+                    timeDisplay.classList.replace('text-red-400', 'text-indigo-300');
+                }
+
+                // Game Over Condition
+                if (timeRemaining <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        // End Game Engine
+        function endGame() {
+            isGameRunning = false;
+            clearInterval(gameInterval);
+            clearInterval(targetInterval);
+
+            // Lock & Hide Target
+            target.classList.add('hidden');
+            
+            // Check Highscore
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('click_game_highscore', highScore);
+                highscoreDisplay.textContent = highScore;
+            }
+
+            playSound('gameover');
+            showResultModal();
+        }
+
+        // Calculate Rank & Display Result Modal
+        function showResultModal() {
+            modalScore.textContent = score;
+            const cps = (score / GAME_DURATION).toFixed(2);
+            modalCps.textContent = `${cps} click/s`;
+
+            // Reaction Speed Ranking Logic
+            let rankText = "";
+            let rankColorClass = "";
+            let iconClass = "";
+
+            if (score >= 40) {
+                rankText = "Thần Tốc! (Phản xạ đỉnh cao ⚡)";
+                badgeContainer.className = "w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-amber-400 to-yellow-200 flex items-center justify-center text-slate-900 text-3xl shadow-lg shadow-amber-500/30 mb-4";
+                iconClass = "fa-solid fa-crown";
+            } else if (score >= 28) {
+                rankText = "Siêu Nhanh (Phản xạ rất tốt 🔥)";
+                badgeContainer.className = "w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-pink-500 to-purple-500 flex items-center justify-center text-white text-3xl shadow-lg shadow-pink-500/30 mb-4";
+                iconClass = "fa-solid fa-bolt";
+            } else if (score >= 18) {
+                rankText = "Khá Tốt (Phản xạ trung bình 👍)";
+                badgeContainer.className = "w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-indigo-500 to-blue-500 flex items-center justify-center text-white text-3xl shadow-lg shadow-indigo-500/30 mb-4";
+                iconClass = "fa-solid fa-thumbs-up";
+            } else {
+                rankText = "Cần Luyện Tập Thêm (Chậm rãi 🐢)";
+                badgeContainer.className = "w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-slate-600 to-slate-800 flex items-center justify-center text-slate-300 text-3xl shadow-lg mb-4";
+                iconClass = "fa-solid fa-gauge-simple-low";
+            }
+
+            modalRank.textContent = rankText;
+             modalIcon.className = iconClass;
+
+            // Show Modal with Animation
+            resultModal.classList.remove('opacity-0', 'pointer-events-none');
+            modalCard.classList.remove('scale-95');
+            modalCard.classList.add('scale-100');
+        }
+
+        // Close Modal
+        function closeModal() {
+            resultModal.classList.add('opacity-0', 'pointer-events-none');
+            modalCard.classList.remove('scale-100');
+            modalCard.classList.add('scale-95');
+        }
+    </script>
+</body>
+</html>
